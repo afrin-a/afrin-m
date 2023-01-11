@@ -1,2 +1,1707 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_cell_guid": "b1076dfc-b9ad-4769-8c92-a6c4dae69d19",
+    "_uuid": "8f2839f25d086af736a60e9eeb907d3b93b6e0e5"
+   },
+   "source": [
+    "# Sentiment Analysis and Prediction of Review Ratings on the Yelp Reviews Dataset using various Machine Learning Algorithms\n",
+    "Dataset Information: <br>\n",
+    "(1). Dataset:\n",
+    "    *   Column 1 - Unique Business ID\n",
+    "    *   Column 2 - Date of Review\n",
+    "    *   Column 3 - Review ID\n",
+    "    *   Column 4 - Stars given by the user\n",
+    "    *   Column 5 - Review given by the user\n",
+    "    *   Column 6 - Type of text entered - Review\n",
+    "    *   Column 7 - Unique User ID\n",
+    "    *   Column 8 - Cool column: The number of cool votes the review received\n",
+    "    *   Column 9 - Useful column: The number of useful votes the review received\n",
+    "    *   Column 10 - Funny Column: The number of funny votes the review received <br>\n",
+    "(2). Number of entries - 10000"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_uuid": "4c8f9cd6d40cc053823bcefcd76f898bfc0aed95"
+   },
+   "source": [
+    "**(1). Importing all the necessary modules:**"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "metadata": {
+    "_cell_guid": "79c7e3d0-c299-4dcb-8224-4455121ee9b0",
+    "_uuid": "d629ff2d2480ee46fbb7e2d37f6b5fab8052498a",
+    "collapsed": true,
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "/opt/conda/lib/python3.6/site-packages/sklearn/cross_validation.py:41: DeprecationWarning: This module was deprecated in version 0.18 in favor of the model_selection module into which all the refactored classes and functions are moved. Also note that the interface of the new CV iterators are different from that of this module. This module will be removed in 0.20.\n",
+      "  \"This module will be removed in 0.20.\", DeprecationWarning)\n",
+      "/opt/conda/lib/python3.6/site-packages/sklearn/grid_search.py:42: DeprecationWarning: This module was deprecated in version 0.18 in favor of the model_selection module into which all the refactored classes and functions are moved. This module will be removed in 0.20.\n",
+      "  DeprecationWarning)\n"
+     ]
+    }
+   ],
+   "source": [
+    "# IMPORTING ALL THE NECESSARY LIBRARIES AND PACKAGES\n",
+    "import pandas as pd\n",
+    "import numpy as np\n",
+    "import matplotlib.pyplot as plt\n",
+    "import seaborn as sns\n",
+    "import nltk\n",
+    "from nltk.corpus import stopwords\n",
+    "import string\n",
+    "import math\n",
+    "from sklearn.feature_extraction.text import CountVectorizer\n",
+    "from sklearn.model_selection import train_test_split, cross_val_score\n",
+    "from sklearn.metrics import classification_report\n",
+    "from sklearn.metrics import confusion_matrix, accuracy_score, roc_auc_score, roc_curve\n",
+    "from sklearn.grid_search import GridSearchCV\n",
+    "%matplotlib inline"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_uuid": "38fd0e6983fa85b2f9752c16ceb680b6ad40365e"
+   },
+   "source": [
+    "**(2). Loading and seeing the dataset details:**"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "metadata": {
+    "_uuid": "1eaa689d053a6fb89bbb697663821fa6a9788aa2"
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Shape of the dataset:\n",
+      "(10000, 10)\n",
+      "Column names:\n",
+      "Index(['business_id', 'date', 'review_id', 'stars', 'text', 'type', 'user_id',\n",
+      "       'cool', 'useful', 'funny'],\n",
+      "      dtype='object')\n",
+      "Datatype of each column:\n",
+      "business_id    object\n",
+      "date           object\n",
+      "review_id      object\n",
+      "stars           int64\n",
+      "text           object\n",
+      "type           object\n",
+      "user_id        object\n",
+      "cool            int64\n",
+      "useful          int64\n",
+      "funny           int64\n",
+      "dtype: object\n",
+      "Few dataset entries:\n",
+      "              business_id        date  ...   useful  funny\n",
+      "0  9yKzy9PApeiPPOUJEtnvkg  2011-01-26  ...        5      0\n",
+      "1  ZRJwVLyzEJq1VAihDhYiow  2011-07-27  ...        0      0\n",
+      "2  6oRAC4uyJCsJl1X0WZpVSA  2012-06-14  ...        1      0\n",
+      "3  _1QQZuf4zZOyFCvXc0o6Vg  2010-05-27  ...        2      0\n",
+      "4  6ozycU1RpktNG2-1BroVtw  2012-01-05  ...        0      0\n",
+      "\n",
+      "[5 rows x 10 columns]\n"
+     ]
+    },
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>business_id</th>\n",
+       "      <th>date</th>\n",
+       "      <th>review_id</th>\n",
+       "      <th>stars</th>\n",
+       "      <th>text</th>\n",
+       "      <th>type</th>\n",
+       "      <th>user_id</th>\n",
+       "      <th>cool</th>\n",
+       "      <th>useful</th>\n",
+       "      <th>funny</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>count</th>\n",
+       "      <td>10000</td>\n",
+       "      <td>10000</td>\n",
+       "      <td>10000</td>\n",
+       "      <td>10000.000000</td>\n",
+       "      <td>10000</td>\n",
+       "      <td>10000</td>\n",
+       "      <td>10000</td>\n",
+       "      <td>10000.000000</td>\n",
+       "      <td>10000.000000</td>\n",
+       "      <td>10000.000000</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>unique</th>\n",
+       "      <td>4174</td>\n",
+       "      <td>1995</td>\n",
+       "      <td>10000</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>9998</td>\n",
+       "      <td>1</td>\n",
+       "      <td>6403</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>top</th>\n",
+       "      <td>JokKtdXU7zXHcr20Lrk29A</td>\n",
+       "      <td>2011-03-28</td>\n",
+       "      <td>9X7vffM8LREC79yf5yRbbA</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>This review is for the chain in general. The l...</td>\n",
+       "      <td>review</td>\n",
+       "      <td>fczQCSmaWF78toLEmb0Zsw</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>freq</th>\n",
+       "      <td>37</td>\n",
+       "      <td>21</td>\n",
+       "      <td>1</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>2</td>\n",
+       "      <td>10000</td>\n",
+       "      <td>38</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>mean</th>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>3.777500</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>0.876800</td>\n",
+       "      <td>1.409300</td>\n",
+       "      <td>0.701300</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>std</th>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>1.214636</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>2.067861</td>\n",
+       "      <td>2.336647</td>\n",
+       "      <td>1.907942</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>min</th>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>1.000000</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>0.000000</td>\n",
+       "      <td>0.000000</td>\n",
+       "      <td>0.000000</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>25%</th>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>3.000000</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>0.000000</td>\n",
+       "      <td>0.000000</td>\n",
+       "      <td>0.000000</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>50%</th>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>4.000000</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>0.000000</td>\n",
+       "      <td>1.000000</td>\n",
+       "      <td>0.000000</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>75%</th>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>5.000000</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>1.000000</td>\n",
+       "      <td>2.000000</td>\n",
+       "      <td>1.000000</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>max</th>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>5.000000</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>NaN</td>\n",
+       "      <td>77.000000</td>\n",
+       "      <td>76.000000</td>\n",
+       "      <td>57.000000</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "                   business_id      ...              funny\n",
+       "count                    10000      ...       10000.000000\n",
+       "unique                    4174      ...                NaN\n",
+       "top     JokKtdXU7zXHcr20Lrk29A      ...                NaN\n",
+       "freq                        37      ...                NaN\n",
+       "mean                       NaN      ...           0.701300\n",
+       "std                        NaN      ...           1.907942\n",
+       "min                        NaN      ...           0.000000\n",
+       "25%                        NaN      ...           0.000000\n",
+       "50%                        NaN      ...           0.000000\n",
+       "75%                        NaN      ...           1.000000\n",
+       "max                        NaN      ...          57.000000\n",
+       "\n",
+       "[11 rows x 10 columns]"
+      ]
+     },
+     "execution_count": 2,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# LOADING THE DATASET AND SEEING THE DETAILS\n",
+    "data = pd.read_csv('../input/yelp.csv')\n",
+    "# SHAPE OF THE DATASET\n",
+    "print(\"Shape of the dataset:\")\n",
+    "print(data.shape)\n",
+    "# COLUMN NAMES\n",
+    "print(\"Column names:\")\n",
+    "print(data.columns)\n",
+    "# DATATYPE OF EACH COLUMN\n",
+    "print(\"Datatype of each column:\")\n",
+    "print(data.dtypes)\n",
+    "# SEEING FEW OF THE ENTRIES\n",
+    "print(\"Few dataset entries:\")\n",
+    "print(data.head())\n",
+    "# DATASET SUMMARY\n",
+    "data.describe(include='all')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_uuid": "4cfd5ab002d32abaed2fb113ef19292878fe3358"
+   },
+   "source": [
+    "**(3). Creating of a new column:**<br>\n",
+    "The new column will be - \"length\". This column will hold the data of the word length of the review."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "metadata": {
+    "_uuid": "c74e401bf74f0a0a2cd7f05a57e99f6f0d4fefff"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>business_id</th>\n",
+       "      <th>date</th>\n",
+       "      <th>review_id</th>\n",
+       "      <th>stars</th>\n",
+       "      <th>text</th>\n",
+       "      <th>type</th>\n",
+       "      <th>user_id</th>\n",
+       "      <th>cool</th>\n",
+       "      <th>useful</th>\n",
+       "      <th>funny</th>\n",
+       "      <th>length</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>9yKzy9PApeiPPOUJEtnvkg</td>\n",
+       "      <td>2011-01-26</td>\n",
+       "      <td>fWKvX83p0-ka4JS3dc6E5A</td>\n",
+       "      <td>5</td>\n",
+       "      <td>My wife took me here on my birthday for breakf...</td>\n",
+       "      <td>review</td>\n",
+       "      <td>rLtl8ZkDX5vH5nAx9C3q5Q</td>\n",
+       "      <td>2</td>\n",
+       "      <td>5</td>\n",
+       "      <td>0</td>\n",
+       "      <td>889</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>ZRJwVLyzEJq1VAihDhYiow</td>\n",
+       "      <td>2011-07-27</td>\n",
+       "      <td>IjZ33sJrzXqU-0X6U8NwyA</td>\n",
+       "      <td>5</td>\n",
+       "      <td>I have no idea why some people give bad review...</td>\n",
+       "      <td>review</td>\n",
+       "      <td>0a2KyEL0d3Yb1V6aivbIuQ</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1345</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>6oRAC4uyJCsJl1X0WZpVSA</td>\n",
+       "      <td>2012-06-14</td>\n",
+       "      <td>IESLBzqUCLdSzSqm0eCSxQ</td>\n",
+       "      <td>4</td>\n",
+       "      <td>love the gyro plate. Rice is so good and I als...</td>\n",
+       "      <td>review</td>\n",
+       "      <td>0hT2KtfLiobPvh6cDC8JQg</td>\n",
+       "      <td>0</td>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>76</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>_1QQZuf4zZOyFCvXc0o6Vg</td>\n",
+       "      <td>2010-05-27</td>\n",
+       "      <td>G-WvGaISbqqaMHlNnByodA</td>\n",
+       "      <td>5</td>\n",
+       "      <td>Rosie, Dakota, and I LOVE Chaparral Dog Park!!...</td>\n",
+       "      <td>review</td>\n",
+       "      <td>uZetl9T0NcROGOyFfughhg</td>\n",
+       "      <td>1</td>\n",
+       "      <td>2</td>\n",
+       "      <td>0</td>\n",
+       "      <td>419</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>6ozycU1RpktNG2-1BroVtw</td>\n",
+       "      <td>2012-01-05</td>\n",
+       "      <td>1uJFq2r5QfJG_6ExMRCaGw</td>\n",
+       "      <td>5</td>\n",
+       "      <td>General Manager Scott Petello is a good egg!!!...</td>\n",
+       "      <td>review</td>\n",
+       "      <td>vYmM4KTsC8ZfQBg-j5MWkw</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>469</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "              business_id        date   ...   funny  length\n",
+       "0  9yKzy9PApeiPPOUJEtnvkg  2011-01-26   ...       0     889\n",
+       "1  ZRJwVLyzEJq1VAihDhYiow  2011-07-27   ...       0    1345\n",
+       "2  6oRAC4uyJCsJl1X0WZpVSA  2012-06-14   ...       0      76\n",
+       "3  _1QQZuf4zZOyFCvXc0o6Vg  2010-05-27   ...       0     419\n",
+       "4  6ozycU1RpktNG2-1BroVtw  2012-01-05   ...       0     469\n",
+       "\n",
+       "[5 rows x 11 columns]"
+      ]
+     },
+     "execution_count": 3,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#CREATING A NEW COLUMN IN THE DATASET FOR THE NUMBER OF WORDS IN THE REVIEW\n",
+    "data['length'] = data['text'].apply(len)\n",
+    "data.head()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_uuid": "f3da559ffb39c186659f2f488d538d933665d9c7"
+   },
+   "source": [
+    "**(4). Visualization:**<br>\n",
+    "Let us now visualize the if there is any correlation between stars and the length of the review."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "metadata": {
+    "_uuid": "d8d798fb8a33267eef690ebf3d6e289076300364"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "<seaborn.axisgrid.FacetGrid at 0x7f0555f73470>"
+      ]
+     },
+     "execution_count": 4,
+     "metadata": {},
+     "output_type": "execute_result"
+    },
+    {
+     "data": {
+      "image/png": "iVBORw0KGgoAAAANSUhEUgAABDAAAADQCAYAAADxn5GHAAAABHNCSVQICAgIfAhkiAAAAAlwSFlz\nAAALEgAACxIB0t1+/AAAADl0RVh0U29mdHdhcmUAbWF0cGxvdGxpYiB2ZXJzaW9uIDIuMS4wLCBo\ndHRwOi8vbWF0cGxvdGxpYi5vcmcvpW3flQAAGoNJREFUeJzt3X+wrHV9H/D3J1xRU1RAr5QAM2Bl\nkuAkQXNj6ZjpGMkoQhroJFbSTkIMGSaJTrQmMVhnYpO2kxg71TG1WhoUbEiFECcyapowiJOmVcxV\nEEVKuGIid6ByGX4ozYQU/faPffCeezmXs+ec7559dvf1mnnmPPvsc579fp973vfZ/ex3v1uttQAA\nAACM2bfNuwEAAAAAG1HAAAAAAEZPAQMAAAAYPQUMAAAAYPQUMAAAAIDRU8AAAAAARk8BY8Sq6g1V\n9e0jaMfrqmpfVbWqes682wPbMaJcXVVVd1TVF6rqfVX1lHm3CbZqRLm6vKo+V1W3VtW1VXXMvNsE\nWzWWXD2uqn6nqh6Zdztgq8aSqaq6oqq+XFW3DMuZ827TIlHAGLc3JNlUyKrqqBm0438m+eEkfz2D\nY8NOG0uurkryXUm+J8nTk/zsDB4DdspYcvUvW2vf11r73iRfSfK6GTwG7JSx5CpVtSfJsbM4Nuyg\n0WQqya+01s4clltm9BhLade8G0BSVX8vyTVJTk5yVJJ/k+SEJN+R5Maqur+19kNV9Z4kP5DJi51r\nW2tvHX7/r5K8L8nLk/zHqnpukp9L8liSL7bWLtxO+1prNw+Ps53DwI5agFx9bE1bPz20E0ZtAXL1\nteFxanjstp3jwU4Ye66GF3BvT/LPk/zT7RwLdsLYM8X2KGCMwzlJ7mmtnZckVfWs1trDVfXGJD/U\nWrt/2O8trbUHhgvJDVX1va21W4f7/ra19oPD79+T5LTW2qNV9YRqeVV9Z5Krj9CWl7bWHurZOZiT\nhcjV8NGRn0zy+q12FHbQ6HNVVe9Pcm6SLyb5pW30FXbK2HP1uiTXtdbu9WYWC2LsmUqSf1dVv5bk\nhiSXttYe3XJvV4wCxjh8Psm/r6q3JflIa+1/HGG/f1ZVl2Ty73ZikjOSPB6ytaG5NclVVfVHSf7o\n8IO01u5I4rNWLLtFydV/SvJnT9I+GJPR56q19prhyejvJHl1kvdv5vdhDkabq6r6jiSvSvLSafaH\n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\n",
+      "text/plain": [
+       "<matplotlib.figure.Figure at 0x7f0555f73f60>"
+      ]
+     },
+     "metadata": {},
+     "output_type": "display_data"
+    }
+   ],
+   "source": [
+    "# COMPARING TEXT LENGTH TO STARS\n",
+    "graph = sns.FacetGrid(data=data,col='stars')\n",
+    "graph.map(plt.hist,'length',bins=50,color='blue')"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_uuid": "2ef6accae543ad39527ee690f14bd67b56b2aeb6"
+   },
+   "source": [
+    "**(5). Mean Value of the Vote columns**\n",
+    "There are 3 voting columns for the reviews - funny, cool and useful. Let us now find the mean values with respect to the stars given to the review."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "metadata": {
+    "_uuid": "0d33fbaf7bf9c99437ecc8ce8f3da33e017685d2"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>cool</th>\n",
+       "      <th>useful</th>\n",
+       "      <th>funny</th>\n",
+       "      <th>length</th>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>stars</th>\n",
+       "      <th></th>\n",
+       "      <th></th>\n",
+       "      <th></th>\n",
+       "      <th></th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>0.576769</td>\n",
+       "      <td>1.604806</td>\n",
+       "      <td>1.056075</td>\n",
+       "      <td>826.515354</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>0.719525</td>\n",
+       "      <td>1.563107</td>\n",
+       "      <td>0.875944</td>\n",
+       "      <td>842.256742</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>0.788501</td>\n",
+       "      <td>1.306639</td>\n",
+       "      <td>0.694730</td>\n",
+       "      <td>758.498289</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>0.954623</td>\n",
+       "      <td>1.395916</td>\n",
+       "      <td>0.670448</td>\n",
+       "      <td>712.923142</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>5</th>\n",
+       "      <td>0.944261</td>\n",
+       "      <td>1.381780</td>\n",
+       "      <td>0.608631</td>\n",
+       "      <td>624.999101</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "           cool    useful     funny      length\n",
+       "stars                                          \n",
+       "1      0.576769  1.604806  1.056075  826.515354\n",
+       "2      0.719525  1.563107  0.875944  842.256742\n",
+       "3      0.788501  1.306639  0.694730  758.498289\n",
+       "4      0.954623  1.395916  0.670448  712.923142\n",
+       "5      0.944261  1.381780  0.608631  624.999101"
+      ]
+     },
+     "execution_count": 5,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# GETTING THE MEAN VALUES OF THE VOTE COLUMNS WRT THE STARS ON THE REVIEW\n",
+    "stval = data.groupby('stars').mean()\n",
+    "stval"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_uuid": "49bbd0cf96c7dd3923642d0d936a9d8c32728029"
+   },
+   "source": [
+    "**(6). Correlation between the voting columns:** <br>\n",
+    "Let us now see what the correlation is between the three voting columns."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "metadata": {
+    "_uuid": "2b4a85469a460276be7c113d917515979b27ceae"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>cool</th>\n",
+       "      <th>useful</th>\n",
+       "      <th>funny</th>\n",
+       "      <th>length</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>cool</th>\n",
+       "      <td>1.000000</td>\n",
+       "      <td>-0.743329</td>\n",
+       "      <td>-0.944939</td>\n",
+       "      <td>-0.857664</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>useful</th>\n",
+       "      <td>-0.743329</td>\n",
+       "      <td>1.000000</td>\n",
+       "      <td>0.894506</td>\n",
+       "      <td>0.699881</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>funny</th>\n",
+       "      <td>-0.944939</td>\n",
+       "      <td>0.894506</td>\n",
+       "      <td>1.000000</td>\n",
+       "      <td>0.843461</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>length</th>\n",
+       "      <td>-0.857664</td>\n",
+       "      <td>0.699881</td>\n",
+       "      <td>0.843461</td>\n",
+       "      <td>1.000000</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "            cool    useful     funny    length\n",
+       "cool    1.000000 -0.743329 -0.944939 -0.857664\n",
+       "useful -0.743329  1.000000  0.894506  0.699881\n",
+       "funny  -0.944939  0.894506  1.000000  0.843461\n",
+       "length -0.857664  0.699881  0.843461  1.000000"
+      ]
+     },
+     "execution_count": 6,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# FINDING THE CORRELATION BETWEEN THE VOTE COLUMNS\n",
+    "stval.corr()"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_uuid": "5e25c839d200a3afc82f3eff86ace27a9ba700b6"
+   },
+   "source": [
+    "Thus, we can see that there is negative correlation between:\n",
+    "    * Cool and Useful\n",
+    "    * Cool and Funny\n",
+    "    * Cool and Length  <br>\n",
+    "Thus, we can say that the reviews marked cool tend to be curt, not very useful to others and short.<br>\n",
+    "Whereas, there is a positive correlation between:\n",
+    "    * Funny and Useful    \n",
+    "    * Funny and Length\n",
+    "    * Useful and Length    \n",
+    "Thus, we can say that longer reviews tend to be funny and useful."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_uuid": "2aaab13300bade1599709fc829b6ae4c455cd508"
+   },
+   "source": [
+    "**(7). Classifying the dataset and splitting it into the reviews and stars:**"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "metadata": {
+    "_uuid": "6bdff07af1a991b91e699eb1dddeedaec1894a38"
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "(5547, 11)\n",
+      "0    My wife took me here on my birthday for breakf...\n",
+      "1    I have no idea why some people give bad review...\n",
+      "3    Rosie, Dakota, and I LOVE Chaparral Dog Park!!...\n",
+      "4    General Manager Scott Petello is a good egg!!!...\n",
+      "6    Drop what you're doing and drive here. After I...\n",
+      "Name: text, dtype: object\n",
+      "0    5\n",
+      "1    5\n",
+      "3    5\n",
+      "4    5\n",
+      "6    5\n",
+      "Name: stars, dtype: int64\n"
+     ]
+    }
+   ],
+   "source": [
+    "# CLASSIFICATION\n",
+    "data_classes = data[(data['stars']==1) | (data['stars']==3) | (data['stars']==5)]\n",
+    "data_classes.head()\n",
+    "print(data_classes.shape)\n",
+    "\n",
+    "# Seperate the dataset into X and Y for prediction\n",
+    "x = data_classes['text']\n",
+    "y = data_classes['stars']\n",
+    "print(x.head())\n",
+    "print(y.head())"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_uuid": "5908ff3871140a101cd172a68bf10bf936dad8ea"
+   },
+   "source": [
+    "**(8). Data Cleaning:** <br>\n",
+    "We will now, define a function which will clean the dataset by removing stopwords and punctuations."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "metadata": {
+    "_uuid": "0412473cc8b5458282c0bed7b6702763e9e0d4bc",
+    "collapsed": true,
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [],
+   "source": [
+    "# CLEANING THE REVIEWS - REMOVAL OF STOPWORDS AND PUNCTUATION\n",
+    "def text_process(text):\n",
+    "    nopunc = [char for char in text if char not in string.punctuation]\n",
+    "    nopunc = ''.join(nopunc)\n",
+    "    return [word for word in nopunc.split() if word.lower() not in stopwords.words('english')]"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_uuid": "91a0a916ad6a1a3e2efb898acc0d553e24229003"
+   },
+   "source": [
+    "**(9). Vectorization**<br>\n",
+    "We will now vectorize a single review and see the results:"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "metadata": {
+    "_uuid": "b4d9c7dd415b17a37428803a64f9a629ea546fd3",
+    "collapsed": true,
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "31336\n",
+      "My wife took me here on my birthday for breakfast and it was excellent.  The weather was perfect which made sitting outside overlooking their grounds an absolute pleasure.  Our waitress was excellent and our food arrived quickly on the semi-busy Saturday morning.  It looked like the place fills up pretty quickly so the earlier you get here the better.\n",
+      "\n",
+      "Do yourself a favor and get their Bloody Mary.  It was phenomenal and simply the best I've ever had.  I'm pretty sure they only use ingredients from their garden and blend them fresh when you order it.  It was amazing.\n",
+      "\n",
+      "While EVERYTHING on the menu looks excellent, I had the white truffle scrambled eggs vegetable skillet and it was tasty and delicious.  It came with 2 pieces of their griddled bread with was amazing and it absolutely made the meal complete.  It was the best \"toast\" I've ever had.\n",
+      "\n",
+      "Anyway, I can't wait to go back!\n",
+      "  (0, 292)\t1\n",
+      "  (0, 1213)\t1\n",
+      "  (0, 1811)\t1\n",
+      "  (0, 3537)\t1\n",
+      "  (0, 5139)\t1\n",
+      "  (0, 5256)\t2\n",
+      "  (0, 6275)\t1\n",
+      "  (0, 8521)\t1\n",
+      "  (0, 10646)\t1\n",
+      "  (0, 10647)\t1\n",
+      "  (0, 11128)\t2\n",
+      "  (0, 11479)\t1\n",
+      "  (0, 11779)\t1\n",
+      "  (0, 12206)\t2\n",
+      "  (0, 12221)\t1\n",
+      "  (0, 12297)\t1\n",
+      "  (0, 12386)\t1\n",
+      "  (0, 12675)\t1\n",
+      "  (0, 12689)\t1\n",
+      "  (0, 13135)\t1\n",
+      "  (0, 13186)\t1\n",
+      "  (0, 14247)\t1\n",
+      "  (0, 15385)\t1\n",
+      "  (0, 16292)\t1\n",
+      "  (0, 16412)\t1\n",
+      "  :\t:\n",
+      "  (0, 23318)\t1\n",
+      "  (0, 23801)\t1\n",
+      "  (0, 23902)\t1\n",
+      "  (0, 23976)\t1\n",
+      "  (0, 24080)\t1\n",
+      "  (0, 24177)\t1\n",
+      "  (0, 24544)\t2\n",
+      "  (0, 24972)\t2\n",
+      "  (0, 26383)\t1\n",
+      "  (0, 26543)\t1\n",
+      "  (0, 26978)\t1\n",
+      "  (0, 27029)\t1\n",
+      "  (0, 27068)\t1\n",
+      "  (0, 28403)\t1\n",
+      "  (0, 28735)\t1\n",
+      "  (0, 29230)\t1\n",
+      "  (0, 29313)\t1\n",
+      "  (0, 29620)\t1\n",
+      "  (0, 30135)\t1\n",
+      "  (0, 30240)\t1\n",
+      "  (0, 30471)\t1\n",
+      "  (0, 30488)\t1\n",
+      "  (0, 30672)\t1\n",
+      "  (0, 30854)\t1\n",
+      "  (0, 30900)\t1\n",
+      "Getting the words back:\n",
+      "hygienist\n",
+      "absence\n"
+     ]
+    }
+   ],
+   "source": [
+    "# CONVERTING THE WORDS INTO A VECTOR\n",
+    "vocab = CountVectorizer(analyzer=text_process).fit(x)\n",
+    "print(len(vocab.vocabulary_))\n",
+    "r0 = x[0]\n",
+    "print(r0)\n",
+    "vocab0 = vocab.transform([r0])\n",
+    "print(vocab0)\n",
+    "\"\"\"\n",
+    "    Now the words in the review number 78 have been converted into a vector.\n",
+    "    The data that we can see is the transformed words.\n",
+    "    If we now get the feature's name - we can get the word back!\n",
+    "\"\"\"\n",
+    "print(\"Getting the words back:\")\n",
+    "print(vocab.get_feature_names()[19648])\n",
+    "print(vocab.get_feature_names()[10643])"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_uuid": "5e46409ff84d460ab507b6f8f5570045e0545c99"
+   },
+   "source": [
+    "**(10). Vectorization of the whole review set and and checking the sparse matrix:**"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "metadata": {
+    "_uuid": "fd0230355f93564ff0d66179f047827b594a1f36",
+    "collapsed": true,
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Shape of the sparse matrix:  (5547, 31336)\n",
+      "Non-Zero occurences:  312457\n",
+      "Density of the matrix =  0.17975812697942373\n"
+     ]
+    }
+   ],
+   "source": [
+    "x = vocab.transform(x)\n",
+    "#Shape of the matrix:\n",
+    "print(\"Shape of the sparse matrix: \", x.shape)\n",
+    "#Non-zero occurences:\n",
+    "print(\"Non-Zero occurences: \",x.nnz)\n",
+    "\n",
+    "# DENSITY OF THE MATRIX\n",
+    "density = (x.nnz/(x.shape[0]*x.shape[1]))*100\n",
+    "print(\"Density of the matrix = \",density)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_uuid": "2d64b4ad5480f96361514ebbe1c2e75a58ecc369"
+   },
+   "source": [
+    "**(11). Splitting the dataset X into training and testing set:**"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "metadata": {
+    "_uuid": "03cfa07d6a627b72c78b904eac2b6b428459b5c8",
+    "collapsed": true,
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [],
+   "source": [
+    "# SPLITTING THE DATASET INTO TRAINING SET AND TESTING SET\n",
+    "x_train,x_test,y_train,y_test = train_test_split(x,y,test_size=0.2,random_state=101)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_uuid": "c11143ea96a27b2fcf4f4b358b20b2214c853903"
+   },
+   "source": [
+    "**(12). Modelling:**<br>\n",
+    "We will now use multiple Machine Algorithms to see which gives the best performance."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_uuid": "6f7541a4cb37736208028acf340a99065cccad92"
+   },
+   "source": [
+    "(1). Multinomial Naive Bayes - We are using Multinomial Naive Bayes over Gaussian because with sparse data, Gaussian Naive Bayes assumptions aren't met and a simple gaussian fit over the data will not give us a good fit or prediction!"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "metadata": {
+    "_uuid": "0bd46fa6e86db8c9aa27b8ff21f142cbd33c1322",
+    "collapsed": true,
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Confusion Matrix for Multinomial Naive Bayes:\n",
+      "[[ 75  49  38]\n",
+      " [  7 180 105]\n",
+      " [ 12  45 599]]\n",
+      "Score: 76.94\n",
+      "Classification Report:              precision    recall  f1-score   support\n",
+      "\n",
+      "          1       0.80      0.46      0.59       162\n",
+      "          3       0.66      0.62      0.64       292\n",
+      "          5       0.81      0.91      0.86       656\n",
+      "\n",
+      "avg / total       0.77      0.77      0.76      1110\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Multinomial Naive Bayes\n",
+    "from sklearn.naive_bayes import MultinomialNB\n",
+    "mnb = MultinomialNB()\n",
+    "mnb.fit(x_train,y_train)\n",
+    "predmnb = mnb.predict(x_test)\n",
+    "print(\"Confusion Matrix for Multinomial Naive Bayes:\")\n",
+    "print(confusion_matrix(y_test,predmnb))\n",
+    "print(\"Score:\",round(accuracy_score(y_test,predmnb)*100,2))\n",
+    "print(\"Classification Report:\",classification_report(y_test,predmnb))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_uuid": "dfe152bbbedee29cea92e80a0796cff143f68cfe"
+   },
+   "source": [
+    "(2). Random Forest Classifier"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "metadata": {
+    "_uuid": "f47f04199e86368eea7bcb89dacf6ee3e36eb32b",
+    "collapsed": true,
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Confusion Matrix for Random Forest Classifier:\n",
+      "[[ 43  40  79]\n",
+      " [ 16 111 165]\n",
+      " [  8  61 587]]\n",
+      "Score: 66.76\n",
+      "Classification Report:              precision    recall  f1-score   support\n",
+      "\n",
+      "          1       0.64      0.27      0.38       162\n",
+      "          3       0.52      0.38      0.44       292\n",
+      "          5       0.71      0.89      0.79       656\n",
+      "\n",
+      "avg / total       0.65      0.67      0.64      1110\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Random Forest\n",
+    "from sklearn.ensemble import RandomForestClassifier\n",
+    "rmfr = RandomForestClassifier()\n",
+    "rmfr.fit(x_train,y_train)\n",
+    "predrmfr = rmfr.predict(x_test)\n",
+    "print(\"Confusion Matrix for Random Forest Classifier:\")\n",
+    "print(confusion_matrix(y_test,predrmfr))\n",
+    "print(\"Score:\",round(accuracy_score(y_test,predrmfr)*100,2))\n",
+    "print(\"Classification Report:\",classification_report(y_test,predrmfr))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_uuid": "9dd89695b2dfdac56ec21f565f2e04e427a94b78"
+   },
+   "source": [
+    "(3). Decision Tree"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "metadata": {
+    "_uuid": "1667c0c25fdb50872b68d7c03e6a9cc7c3cd959d",
+    "collapsed": true,
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Confusion Matrix for Decision Tree:\n",
+      "[[ 60  47  55]\n",
+      " [ 25 140 127]\n",
+      " [ 35  98 523]]\n",
+      "Score: 65.14\n",
+      "Classification Report:              precision    recall  f1-score   support\n",
+      "\n",
+      "          1       0.50      0.37      0.43       162\n",
+      "          3       0.49      0.48      0.49       292\n",
+      "          5       0.74      0.80      0.77       656\n",
+      "\n",
+      "avg / total       0.64      0.65      0.64      1110\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Decision Tree\n",
+    "from sklearn.tree import DecisionTreeClassifier\n",
+    "dt = DecisionTreeClassifier()\n",
+    "dt.fit(x_train,y_train)\n",
+    "preddt = dt.predict(x_test)\n",
+    "print(\"Confusion Matrix for Decision Tree:\")\n",
+    "print(confusion_matrix(y_test,preddt))\n",
+    "print(\"Score:\",round(accuracy_score(y_test,preddt)*100,2))\n",
+    "print(\"Classification Report:\",classification_report(y_test,preddt))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_uuid": "30b9fe08af4cbd989fe6ef3a21d156d6caf2b2af"
+   },
+   "source": [
+    "(4). Support Vector Machines"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 15,
+   "metadata": {
+    "_uuid": "ef00d05e7aebf2fa0f56f5e58c5f32ef5ebd92e2",
+    "collapsed": true,
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "/opt/conda/lib/python3.6/site-packages/sklearn/svm/base.py:194: FutureWarning: The default value of gamma will change from 'auto' to 'scale' in version 0.22 to account better for unscaled features. Set gamma explicitly to 'auto' or 'scale' to avoid this warning.\n",
+      "  \"avoid this warning.\", FutureWarning)\n"
+     ]
+    },
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Confusion Matrix for Support Vector Machines:\n",
+      "[[  0   0 162]\n",
+      " [  0   0 292]\n",
+      " [  0   0 656]]\n",
+      "Score: 59.1\n",
+      "Classification Report:              precision    recall  f1-score   support\n",
+      "\n",
+      "          1       0.00      0.00      0.00       162\n",
+      "          3       0.00      0.00      0.00       292\n",
+      "          5       0.59      1.00      0.74       656\n",
+      "\n",
+      "avg / total       0.35      0.59      0.44      1110\n",
+      "\n"
+     ]
+    },
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "/opt/conda/lib/python3.6/site-packages/sklearn/metrics/classification.py:1140: UndefinedMetricWarning: Precision and F-score are ill-defined and being set to 0.0 in labels with no predicted samples.\n",
+      "  'precision', 'predicted', average, warn_for)\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Support Vector Machine\n",
+    "from sklearn.svm import SVC\n",
+    "svm = SVC(random_state=101)\n",
+    "svm.fit(x_train,y_train)\n",
+    "predsvm = svm.predict(x_test)\n",
+    "print(\"Confusion Matrix for Support Vector Machines:\")\n",
+    "print(confusion_matrix(y_test,predsvm))\n",
+    "print(\"Score:\",round(accuracy_score(y_test,predsvm)*100,2))\n",
+    "print(\"Classification Report:\",classification_report(y_test,predsvm))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_uuid": "7d6b32501847725e3163d0fd9441d44c800b5173"
+   },
+   "source": [
+    "(5). Gradient Boosting Classifier"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "metadata": {
+    "_uuid": "b2a4d2c63064a019729c476df7923be2daa17202",
+    "collapsed": true,
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Confusion Matrix for Gradient Boosting Classifier:\n",
+      "[[ 58  30  74]\n",
+      " [  7 142 143]\n",
+      " [  6  30 620]]\n",
+      "Score: 73.87\n",
+      "Classification Report:              precision    recall  f1-score   support\n",
+      "\n",
+      "          1       0.82      0.36      0.50       162\n",
+      "          3       0.70      0.49      0.57       292\n",
+      "          5       0.74      0.95      0.83       656\n",
+      "\n",
+      "avg / total       0.74      0.74      0.71      1110\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Gradient Boosting Classifier\n",
+    "from sklearn.ensemble import GradientBoostingClassifier\n",
+    "\"\"\"# parameter evaluation\n",
+    "gbe = GradientBoostingClassifier(random_state=0)\n",
+    "parameters = {\n",
+    "     'learning_rate': [0.05, 0.1, 0.5],\n",
+    "    'max_features': [0.5, 1],\n",
+    "    'max_depth': [3, 4, 5]}\n",
+    "gridsearch=GridSearchCV(gbe,parameters,cv=100,scoring='roc_auc')\n",
+    "gridsearch.fit(x,y)\n",
+    "print(gridsearch.best_params_)\n",
+    "print(gridsearch.best_score_)\"\"\"\n",
+    "#Boosting\n",
+    "gbi = GradientBoostingClassifier(learning_rate=0.1,max_depth=5,max_features=0.5,random_state=999999)\n",
+    "gbi.fit(x_train,y_train)\n",
+    "predgbi = gbi.predict(x_test)\n",
+    "print(\"Confusion Matrix for Gradient Boosting Classifier:\")\n",
+    "print(confusion_matrix(y_test,predgbi))\n",
+    "print(\"Score:\",round(accuracy_score(y_test,predgbi)*100,2))\n",
+    "print(\"Classification Report:\",classification_report(y_test,predgbi))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_uuid": "c3ce676382c75eccbcfe605f0a0dd04a48053abc"
+   },
+   "source": [
+    "In the above GBC code, I have commented the parameter evaluation code because it takes a lot of time for execution. In version 9 of this notebook , I ran only the parameter evaluation code, I got the parameters of: <br>\n",
+    "    * Learning Rate = 0.1\n",
+    "    * Max Depth = 5\n",
+    "    * Max Features = 0.5 \n",
+    "Hence, I used those features directly from Version 10 onwards for faster execution. If you want to see the running, you can either run version 9 or uncomment that part.\n",
+    "    "
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_uuid": "5e9eb8e5158760e1bf3802b3367eb1186817a804"
+   },
+   "source": [
+    "(6). K - Nearest Neighbor Classifier"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 17,
+   "metadata": {
+    "_uuid": "4121c390f2f1e4e099bf219b0f01be11f0a85d3d",
+    "collapsed": true,
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Confusion Matrix for K Neighbors Classifier:\n",
+      "[[ 12  10 140]\n",
+      " [  3  33 256]\n",
+      " [  8  12 636]]\n",
+      "Score:  61.35\n",
+      "Classification Report:\n",
+      "             precision    recall  f1-score   support\n",
+      "\n",
+      "          1       0.52      0.07      0.13       162\n",
+      "          3       0.60      0.11      0.19       292\n",
+      "          5       0.62      0.97      0.75       656\n",
+      "\n",
+      "avg / total       0.60      0.61      0.51      1110\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "# K Nearest Neighbour Algorithm\n",
+    "from sklearn.neighbors import KNeighborsClassifier\n",
+    "knn = KNeighborsClassifier(n_neighbors=10)\n",
+    "knn.fit(x_train,y_train)\n",
+    "predknn = knn.predict(x_test)\n",
+    "print(\"Confusion Matrix for K Neighbors Classifier:\")\n",
+    "print(confusion_matrix(y_test,predknn))\n",
+    "print(\"Score: \",round(accuracy_score(y_test,predknn)*100,2))\n",
+    "print(\"Classification Report:\")\n",
+    "print(classification_report(y_test,predknn))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_uuid": "f56bf490b885f9303b3d231a4531e00e49cd6b2a"
+   },
+   "source": [
+    "(7). XGBoost Classifier"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 18,
+   "metadata": {
+    "_uuid": "b79d5587fed38dc6fed549de0f6e1c2744f78cb2",
+    "collapsed": true,
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Confusion Matrix for XGBoost Classifier:\n",
+      "[[ 44  22  96]\n",
+      " [  3 121 168]\n",
+      " [  5  30 621]]\n",
+      "Score:  70.81\n",
+      "Classification Report:\n",
+      "             precision    recall  f1-score   support\n",
+      "\n",
+      "          1       0.85      0.27      0.41       162\n",
+      "          3       0.70      0.41      0.52       292\n",
+      "          5       0.70      0.95      0.81       656\n",
+      "\n",
+      "avg / total       0.72      0.71      0.67      1110\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "# XGBoost Classifier\n",
+    "import xgboost\n",
+    "from xgboost import XGBClassifier\n",
+    "xgb = XGBClassifier()\n",
+    "xgb.fit(x_train,y_train)\n",
+    "predxgb = xgb.predict(x_test)\n",
+    "print(\"Confusion Matrix for XGBoost Classifier:\")\n",
+    "print(confusion_matrix(y_test,predxgb))\n",
+    "print(\"Score: \",round(accuracy_score(y_test,predxgb)*100,2))\n",
+    "print(\"Classification Report:\")\n",
+    "print(classification_report(y_test,predxgb))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 19,
+   "metadata": {
+    "_uuid": "485d33ad9d0dded433a4fc7cf05924256467db2f",
+    "collapsed": true,
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Confusion Matrix for Multilayer Perceptron Classifier:\n",
+      "[[ 98  32  32]\n",
+      " [ 20 187  85]\n",
+      " [ 10  65 581]]\n",
+      "Score: 78.02\n",
+      "Classification Report:\n",
+      "             precision    recall  f1-score   support\n",
+      "\n",
+      "          1       0.77      0.60      0.68       162\n",
+      "          3       0.66      0.64      0.65       292\n",
+      "          5       0.83      0.89      0.86       656\n",
+      "\n",
+      "avg / total       0.78      0.78      0.78      1110\n",
+      "\n"
+     ]
+    }
+   ],
+   "source": [
+    "# MULTILAYER PERCEPTRON CLASSIFIER\n",
+    "from sklearn.neural_network import MLPClassifier\n",
+    "mlp = MLPClassifier()\n",
+    "mlp.fit(x_train,y_train)\n",
+    "predmlp = mlp.predict(x_test)\n",
+    "print(\"Confusion Matrix for Multilayer Perceptron Classifier:\")\n",
+    "print(confusion_matrix(y_test,predmlp))\n",
+    "print(\"Score:\",round(accuracy_score(y_test,predmlp)*100,2))\n",
+    "print(\"Classification Report:\")\n",
+    "print(classification_report(y_test,predmlp))"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_uuid": "4fdf36796200d49cb226e0afc62d0e33906f3fd6"
+   },
+   "source": [
+    "From the above algorithm modelling, we can see that: \n",
+    "    *  Multilayer Perceptron = 77.57%\n",
+    "    * Multinomial Naive Bayes = 76.94%\n",
+    "    * Gradient Boosting Classifier = 73.87%\n",
+    "    * XGBoost Classifier = 70.81%\n",
+    "    * Random Forest Classifier = 67.57%\n",
+    "    * Decision Tree = 65.5%\n",
+    "    * K Neighbor Classifier = 61.35%\n",
+    "    * Support Vector Machine  = 59.1%\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_uuid": "4d1750493932ab569709498cbaa290fc6f4a0a07"
+   },
+   "source": [
+    "Since multilayer perceptron classifier has the best score, let us use it to predict a random positive review, a random average review and a random negative review!"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 20,
+   "metadata": {
+    "_uuid": "7a0d19cac82fa69142ab0e6fbd9c1ac05c001d48",
+    "collapsed": true,
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "My wife took me here on my birthday for breakfast and it was excellent.  The weather was perfect which made sitting outside overlooking their grounds an absolute pleasure.  Our waitress was excellent and our food arrived quickly on the semi-busy Saturday morning.  It looked like the place fills up pretty quickly so the earlier you get here the better.\n",
+      "\n",
+      "Do yourself a favor and get their Bloody Mary.  It was phenomenal and simply the best I've ever had.  I'm pretty sure they only use ingredients from their garden and blend them fresh when you order it.  It was amazing.\n",
+      "\n",
+      "While EVERYTHING on the menu looks excellent, I had the white truffle scrambled eggs vegetable skillet and it was tasty and delicious.  It came with 2 pieces of their griddled bread with was amazing and it absolutely made the meal complete.  It was the best \"toast\" I've ever had.\n",
+      "\n",
+      "Anyway, I can't wait to go back!\n",
+      "Actual Rating:  5\n",
+      "Predicted Rating:\n"
+     ]
+    },
+    {
+     "data": {
+      "text/plain": [
+       "5"
+      ]
+     },
+     "execution_count": 20,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# POSITIVE REVIEW\n",
+    "pr = data['text'][0]\n",
+    "print(pr)\n",
+    "print(\"Actual Rating: \",data['stars'][0])\n",
+    "pr_t = vocab.transform([pr])\n",
+    "print(\"Predicted Rating:\")\n",
+    "mlp.predict(pr_t)[0]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 21,
+   "metadata": {
+    "_uuid": "bfb82ff1085c6af91635c34819c6287b25848a42",
+    "collapsed": true,
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "We went here on a Saturday afternoon and this place was incredibly empty.  They had brunch specials going on, including $2 bloody mary's and mimosas, but we were more in the mood for lunch.  Except for the bloody mary, I had to try one.  It came out in a high-ball-sized glass.  Boo!  But it was really tasty. Yay!  The hubby remembered a sign outside the restaurant a few weeks back that said they had Arrogant Bastard, and he got a 22 oz bottle for $4.75.  Hey, that's not fair!!\n",
+      "\n",
+      "Next up: the wings.  We were a bit hesitant to order them when the waitress informed us that they are \"seasoned\" but not sauced, so they can't be ordered hot.  We did ask for them crispy though, and the waitress even asked the cooks to throw them back in for a few minutes when they came out not visibly crispy.  These non-traditional wings were actually pretty damn good.  The seasoning was a little spicy and salty with just a hint of sweet.  If I were in the mood for the tang and kick of Frank's Hot Sauce, these wouldn't cut it, but otherwise they were good enough to go back again for.\n",
+      "\n",
+      "My entree was the Tilapia salad, and I was a bit disappointed.  The fish was a bit dry and uninspired. And the greens underneath were overdressed and wilted.  I ate the greens around the fish and picked out the almonds and Mandarin oranges, but I had to leave the mush hiding underneath the fish.\n",
+      "\n",
+      "It wasn't bad enough to say I wouldn't go back, but I won't be anxiously awaiting my next trip.\n",
+      "Actual Rating:  3\n",
+      "Predicted Rating:\n"
+     ]
+    },
+    {
+     "data": {
+      "text/plain": [
+       "3"
+      ]
+     },
+     "execution_count": 21,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# AVERAGE REVIEW\n",
+    "ar = data['text'][16]\n",
+    "print(ar)\n",
+    "print(\"Actual Rating: \",data['stars'][16])\n",
+    "ar_t = vocab.transform([ar])\n",
+    "print(\"Predicted Rating:\")\n",
+    "mlp.predict(ar_t)[0]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 22,
+   "metadata": {
+    "_uuid": "feb2cfec74130318701c0d0197a632d9d266609c",
+    "collapsed": true,
+    "jupyter": {
+     "outputs_hidden": true
+    }
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "We went here on a Saturday afternoon and this place was incredibly empty.  They had brunch specials going on, including $2 bloody mary's and mimosas, but we were more in the mood for lunch.  Except for the bloody mary, I had to try one.  It came out in a high-ball-sized glass.  Boo!  But it was really tasty. Yay!  The hubby remembered a sign outside the restaurant a few weeks back that said they had Arrogant Bastard, and he got a 22 oz bottle for $4.75.  Hey, that's not fair!!\n",
+      "\n",
+      "Next up: the wings.  We were a bit hesitant to order them when the waitress informed us that they are \"seasoned\" but not sauced, so they can't be ordered hot.  We did ask for them crispy though, and the waitress even asked the cooks to throw them back in for a few minutes when they came out not visibly crispy.  These non-traditional wings were actually pretty damn good.  The seasoning was a little spicy and salty with just a hint of sweet.  If I were in the mood for the tang and kick of Frank's Hot Sauce, these wouldn't cut it, but otherwise they were good enough to go back again for.\n",
+      "\n",
+      "My entree was the Tilapia salad, and I was a bit disappointed.  The fish was a bit dry and uninspired. And the greens underneath were overdressed and wilted.  I ate the greens around the fish and picked out the almonds and Mandarin oranges, but I had to leave the mush hiding underneath the fish.\n",
+      "\n",
+      "It wasn't bad enough to say I wouldn't go back, but I won't be anxiously awaiting my next trip.\n",
+      "Actual Rating:  1\n",
+      "Predicted Rating:\n"
+     ]
+    },
+    {
+     "data": {
+      "text/plain": [
+       "3"
+      ]
+     },
+     "execution_count": 22,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# NEGATIVE REVIEW\n",
+    "nr = data['text'][16]\n",
+    "print(nr)\n",
+    "print(\"Actual Rating: \",data['stars'][23])\n",
+    "nr_t = vocab.transform([nr])\n",
+    "print(\"Predicted Rating:\")\n",
+    "mlp.predict(nr_t)[0]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 23,
+   "metadata": {
+    "_uuid": "6c74cde9c07113026bc8c033c6f36c3a71c6b42b"
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "4    3526\n",
+      "5    3337\n",
+      "3    1461\n",
+      "2     927\n",
+      "1     749\n",
+      "Name: stars, dtype: int64\n"
+     ]
+    }
+   ],
+   "source": [
+    "count = data['stars'].value_counts()\n",
+    "print(count)"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "_uuid": "26e1de99725f6763637d0290892afaa5233da179"
+   },
+   "source": [
+    "From the above, we can see that predictions are biased towards positive reviews. We can see that the dataset has more positive reviews as compared to negative reviews. <br>\n",
+    "I think I can fix it by normalizing the dataset to have equal number of reviews - thereby removing the bias. "
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.6.4"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 4
+}
+
